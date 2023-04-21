@@ -26,6 +26,9 @@ class AccountAnalyticLineCustom(models.Model):
                 self.work_entry_archive()
             
             if record.date_start == False or record.date_stop == False:
+                if record.work_entry_id.id != False:
+                    record.work_entry_id.active = False
+                    record.work_entry_id = False
                 continue
             
             if record.date_start:
