@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
 {
-    'name': "payroll_bihc",
+    'name': "Timesheet to Payroll",
 
     'summary': """
-        Short (1 phrase/line) summary of the module's purpose, used as
-        subtitle on modules listing or apps.openerp.com""",
+        Create a work entry from Timesheet records
+        """,
 
     'description': """
-        Long description of module's purpose
+        Create a work entry from Timesheet records
     """,
 
-    'author': "My Company",
-    'website': "https://www.yourcompany.com",
+    'author': "Avalantec",
+    'website': "https://www.avalantec.com",
 
     # Categories can be used to filter modules in modules listing
     # Check https://github.com/odoo/odoo/blob/16.0/odoo/addons/base/data/ir_module_category_data.xml
