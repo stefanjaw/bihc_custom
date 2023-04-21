@@ -8,6 +8,7 @@ _logging = _logger = logging.getLogger(__name__)
 class payroll_custom(models.Model):
     _inherit = 'project.task'
     
+    
     def action_payroll_add(self):
         for record in self:
             _logger.info(f"DEF13 self: {self} timesheet_ids: {record.timesheet_ids}\n")
