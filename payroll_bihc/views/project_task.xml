@@ -1,0 +1,21 @@
+<odoo>
+  <data>
+
+    <record model="ir.ui.view" id="project_task_form_custom_bihc">
+      <field name="name">project.task.form.custom.bihc</field>
+      <field name="inherit_id" ref="project.view_task_form2"/>
+      <field name="model">project.task</field>
+      <field name="priority">98</field>
+      <field name="type">form</field>
+      <field name="arch" type="xml">
+          <xpath expr="//field[@name='timesheet_ids']/tree/field[@name='unit_amount']" position="after">
+            <field name="date_start" optional="show" string="Date Start"/>
+            <field name="date_stop" optional="show" string="Date End"/>
+            <field name="work_entry_id" optional="show"/>
+          </xpath>
+
+      </field>
+    </record>
+   
+  </data>
+</odoo>
