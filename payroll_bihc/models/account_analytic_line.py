@@ -16,6 +16,7 @@ class AccountAnalyticLineCustom(models.Model):
     @api.onchange('date_start', 'date_stop', 'name', 'employee_id', 'date', 'work_entry_id')
     def update_unit_amount(self):
         for record in self:
+            _logger.info(f"  Checking Timesheets with Work Entries")
             
             if record._origin.work_entry_id.state == 'validated':
                 msg = f"Can't Delete/Modify a validated work entry:\n{record._origin.work_entry_id.date_start} - {record._origin.work_entry_id.name}"
