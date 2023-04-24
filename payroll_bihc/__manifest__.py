@@ -20,12 +20,13 @@
     'version': '0.1',
 
     # any module necessary for this one to work correctly
-    'depends': ['base', 'hr_payroll', 'timesheet_grid'],
+    'depends': ['base', 'hr_payroll', 'timesheet_grid', 'industry_fsm', 'hr_timesheet','account_accountant'],
 
     # always loaded
     'data': [
         # 'security/ir.model.access.csv',
-        'views/project_task.xml'
+        'views/project_task.xml',
+        'views/account_analytic_line.xml'
     ],
     # only loaded in demonstration mode
     #'demo': [

@@ -1,0 +1,21 @@
+<odoo>
+  <data>
+
+    <record model="ir.ui.view" id="account_analytic_line_tree_hr_timesheet_custom_bihc">
+      <field name="name">account.analytic.line.tree.hr_timesheet.custom.bihc</field>
+      <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_tree"/>
+      <field name="model">account.analytic.line</field>
+      <field name="priority">98</field>
+      <field name="type">tree</field>
+      <field name="arch" type="xml">
+          <xpath expr="//tree" position="inside">
+            <field name="date_start" optional="show" string="Date Start"/>
+            <field name="date_stop" optional="show" string="Date End"/>
+            <field name="work_entry_id" optional="show"/>
+          </xpath>
+
+      </field>
+    </record>
+   
+  </data>
+</odoo>
