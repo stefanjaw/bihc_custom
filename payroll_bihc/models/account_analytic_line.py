@@ -6,13 +6,13 @@ from odoo.exceptions import ValidationError
 import logging
 _logging = _logger = logging.getLogger(__name__)
 
-class AccountAnalyticLineCustom(models.Model):
+class AccountAnalyticLineCustom(models.Model): # 1683736253
     _inherit = 'account.analytic.line'
     
     work_entry_id = fields.Many2one('hr.work.entry')
     date_start = fields.Datetime( )
     date_stop = fields.Datetime( )
-
+    
     @api.onchange('date_start', 'date_stop', 'name', 'employee_id', 'date', 'work_entry_id')
     def update_unit_amount(self):
         for record in self:
@@ -21,9 +21,6 @@ class AccountAnalyticLineCustom(models.Model):
             if record._origin.work_entry_id.state == 'validated':
                 msg = f"Can't Delete/Modify a validated work entry:\n{record._origin.work_entry_id.date_start} - {record._origin.work_entry_id.name}"
                 raise ValidationError(msg)
-            
-            if record._origin.work_entry_id.id != False and record.work_entry_id.id == False:
-                self.work_entry_archive()
             
             if record.date_start == False or record.date_stop == False:
                 if record.work_entry_id.id != False:
@@ -39,26 +36,34 @@ class AccountAnalyticLineCustom(models.Model):
                 duration_hrs = duration_secs / 3600
 
                 record.unit_amount = duration_hrs
-                self.work_entry_update()
+                record.work_entry_update()
             
     def work_entry_update(self):
-        
         self.ensure_one()
         work_entry_id = self.work_entry_id
         
         if len( work_entry_id ) == 0:
-            self.work_entry_archive()
+            work_entry_id = work_entry_id.search([
+                ('account_analytic_line_id', '!=', False),
+                ('account_analytic_line_id', '=', self._origin.id)
+            ])
+            self.work_entry_id = work_entry_id
+        
+        if len( work_entry_id ) == 0:
             self.work_entry_create()
-
+        
         description = str(self.employee_id.name) + ": " + str(self.name or "")
-        self.work_entry_id.write({
+        work_entry_id.write({
                 'employee_id': self.employee_id.id,
                 'name': description,
                 'date_start': self.date_start,
                 'date_stop': self.date_stop,
+                'account_analytic_line_id': self._origin.id
         })
         
+        
     def work_entry_create(self):
+        _logger.info(f"  Creating Work Entry")
         description = str(self.employee_id.name) + ": " + str(self.name or "")
         
         work_entry_id = self.env['hr.work.entry'].sudo().create({
@@ -73,15 +78,24 @@ class AccountAnalyticLineCustom(models.Model):
         
         return
     
-    def work_entry_archive(self):
-        record_ids = self.env['hr.work.entry'].sudo().search([
-            ('state','!=', 'validated'),
-            ('company_id','=', self.company_id.id),
-            ('employee_id','=', self.employee_id.id),
-            ('date_start','=', self.date_start),
-            ('date_stop','=', self.date_stop),
-        ])
+    @api.model_create_multi
+    def create(self, vals_list):
+        self.work_entry_missing()
+
+        res = super(AccountAnalyticLineCustom, self).create( vals_list )
+        res.update_unit_amount()
         
-        record_ids.write({
-            'active': False
-        })
+        return res
+    
+    
+    def work_entry_missing(self):
+        
+        records = self.search([
+            ('id', '!=', False),
+            ('date_start', '!=', False),
+            ('date_stop', '!=', False),
+            ('work_entry_id','=', False)
+        ])
+
+        for record in records:
+            record.work_entry_update()

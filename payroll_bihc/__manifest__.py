@@ -26,7 +26,8 @@
     'data': [
         # 'security/ir.model.access.csv',
         'views/project_task.xml',
-        'views/account_analytic_line.xml'
+        'views/account_analytic_line.xml',
+        'views/hr_work_entry.xml'
     ],
     # only loaded in demonstration mode
     #'demo': [
