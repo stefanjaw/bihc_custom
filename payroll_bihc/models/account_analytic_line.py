@@ -3,6 +3,8 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
+import pytz
+
 import logging
 _logging = _logger = logging.getLogger(__name__)
 
@@ -29,15 +31,19 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 continue
             
             if record.date_start:
-                record.date = record.date_start
-                
+                timezone_code = self._context.get('tz')
+                if timezone_code not in [False, None]:
+                    record.date = record.date_start.astimezone( pytz.timezone(timezone_code))
+                else:
+                    record.date = record.date_start
+            
             if record.date_start != False and record.date_stop != False:
                 duration_secs = (record.date_stop  - record.date_start).total_seconds()
                 duration_hrs = duration_secs / 3600
 
                 record.unit_amount = duration_hrs
                 record.work_entry_update()
-            
+    
     def work_entry_update(self):
         self.ensure_one()
         work_entry_id = self.work_entry_id
