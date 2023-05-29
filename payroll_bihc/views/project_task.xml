@@ -17,5 +17,19 @@
       </field>
     </record>
    
+    <menuitem id="fsm_menu_root_timesheets_custom_bihc"
+         name="All TimeSheets"
+         parent="industry_fsm.fsm_menu_root"
+         action="hr_timesheet.timesheet_action_all"
+         sequence="17"
+    />
+      
+    <menuitem id="fsm_menu_root_projects_custom_bihc"
+         name="All Projects"
+         parent="industry_fsm.fsm_menu_root"
+         action="project.open_view_project_all"
+         sequence="18"
+    />
+      
   </data>
 </odoo>
