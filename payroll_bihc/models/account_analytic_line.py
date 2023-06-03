@@ -3,7 +3,7 @@
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 
-import pytz
+import datetime, pytz
 
 import logging
 _logging = _logger = logging.getLogger(__name__)
@@ -15,7 +15,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     date_start = fields.Datetime( )
     date_stop = fields.Datetime( )
     
-    @api.onchange('date_start', 'date_stop', 'name', 'employee_id', 'date', 'work_entry_id')
+    @api.onchange('date_start', 'date_stop', 'name', 'employee_id', 'date', 'work_entry_id', 'unit_amount')
     def update_unit_amount(self):
         for record in self:
             _logger.info(f"  Checking Timesheets with Work Entries")
@@ -37,12 +37,11 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 else:
                     record.date = record.date_start
             
-            if record.date_start != False and record.date_stop != False:
-                duration_secs = (record.date_stop  - record.date_start).total_seconds()
-                duration_hrs = duration_secs / 3600
-
-                record.unit_amount = duration_hrs
+            if record.date_start != False and record.unit_amount != False:
+                record.date_stop = record.date_start + datetime.timedelta(hours=record.unit_amount)
                 record.work_entry_update()
+            
+            _logger.info(f"      Updated Record")
     
     def work_entry_update(self):
         self.ensure_one()
