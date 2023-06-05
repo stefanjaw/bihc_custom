@@ -24,7 +24,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 msg = f"Can't Delete/Modify a validated work entry:\n{record._origin.work_entry_id.date_start} - {record._origin.work_entry_id.name}"
                 raise ValidationError(msg)
             
-            if record.date_start == False or record.date_stop == False:
+            if record.date_start == False:
                 if record.work_entry_id.id != False:
                     record.work_entry_id.active = False
                     record.work_entry_id = False
