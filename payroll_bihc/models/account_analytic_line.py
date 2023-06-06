@@ -73,14 +73,14 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     def unlink(self):
         _logger.info(f"DEF81 unlinking self: {self}")
         work_entry_ids = self.env['hr.work.entry'].search([
-            ('account_analytic_line_id', '=', self.id)
+            ('account_analytic_line_id', 'in', self.ids)
         ])
         if len(work_entry_ids) > 0:
             _logger.info(f"DEF83 Deleting : {work_entry_ids}\n")
             work_entry_ids.unlink()
 
         so_line_ids = self.env['sale.order.line'].search([
-            ('timesheet_id', '=', self.id)
+            ('timesheet_id', 'in', self.ids)
         ])
         if len(so_line_ids) > 0:
             _logger.info(f"DEF83 Deleting : {so_line_ids}\n")
