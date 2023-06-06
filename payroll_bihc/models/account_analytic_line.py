@@ -41,11 +41,12 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         return analytic_line_id
 
     def write(self, vals):
-        _logger.info(f"DEF44 write: {self} - {vals} =======\n")
+        _logger.info(f"DEF44 write: {self} - vals: {vals} =======\n")
 
         if len(self) == 0:
             _logger.info(f"  DEF47 def write NO vals")
             return self
+        
         for analytic_line_id in self:
             
             #timezone_code = self._context.get('tz')
@@ -57,15 +58,15 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             _logger.info(f"DEF57 write analytic_line_update: {analytic_line_updated} =======\n")
 
             sale_order_int = analytic_line_id.task_id.action_view_so().get('res_id')
-            _logger.info(f"DEF34b sale_order_int: {sale_order_int}")
+            _logger.info(f"DEF60 sale_order_int: {sale_order_int}")
             sale_order_id = self.env['sale.order'].browse( sale_order_int )
-            _logger.info(f"DEF34c sale_order_id: {sale_order_id}")
+            _logger.info(f"DEF62 sale_order_id: {sale_order_id}")
             
             work_entry_updated = analytic_line_id.work_entry_write()
-            _logger.info(f"DEF60 write work_entry_updated: {work_entry_updated} =======\n")
+            _logger.info(f"DEF65 write work_entry_updated: {work_entry_updated} =======\n")
     
             so_line_updated = analytic_line_id.so_line_write()
-            _logger.info(f"DEF63 write so_line_updated: {so_line_updated} =======\n")
+            _logger.info(f"DEF68 write so_line_updated: {so_line_updated} =======\n")
         
         return True
 
@@ -77,6 +78,13 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         if len(work_entry_ids) > 0:
             _logger.info(f"DEF83 Deleting : {work_entry_ids}\n")
             work_entry_ids.unlink()
+
+        so_line_ids = self.env['sale.order.line'].search([
+            ('timesheet_id', '=', self.id)
+        ])
+        if len(so_line_ids) > 0:
+            _logger.info(f"DEF83 Deleting : {so_line_ids}\n")
+            so_line_ids.product_uom_qty = 0
         res = super(AccountAnalyticLineCustom, self).unlink()
         return res
 
@@ -165,28 +173,37 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     
     def so_line_create(self):
         _logger.info(f"        DEF218 so_line_create: {self}\n")
-
+        
         sale_order_int = self.task_id.action_view_so().get('res_id')
-        _logger.info(f"DEF246 sale_order_int: {sale_order_int}")
+        _logger.info(f"    DEF246 sale_order_int: {sale_order_int}")
+        
         if sale_order_int in [None, False]:
+            _logger.info(f"    DEF172 Creating Sale Order\n======172======\n")
             self.task_id.action_fsm_validate()
             sale_order_int = self.task_id.action_view_so().get('res_id')
-        
-        _logger.info(f"DEF253 sale_order_int: {sale_order_int}")
+            sale_order_id = self.env['sale.order'].browse( sale_order_int )
+            sale_order_id.order_line.write({
+                'timesheet_id': self.id,
+                'timesheet_ids': [self.id]
+            })
+            _logger.info(f"    DEF178b order_line.name:{sale_order_id.order_line}")
+            
+        _logger.info(f"DEF176 sale_order_int: {sale_order_int}")
         sale_order_id = self.env['sale.order'].browse( sale_order_int )
-        _logger.info(f"DEF34b sale_order_id: {sale_order_id}")
+        _logger.info(f"DEF178a sale_order_id: {sale_order_id}")
         
         so_line_ids = self.env['sale.order.line'].search([
             ('timesheet_id','!=', False),
             ('timesheet_id','=', self.id),
         ])
         _logger.info(f"        DEF224 so_line_ids: {so_line_ids}\n")
-        
+
         if len(so_line_ids) == 0:
             _logger.info(f"        DEF226 so_line_create: {self}\n")
-            #timezone_code = self._context.get('tz')
+
             date1 = self.date #.astimezone( pytz.timezone(timezone_code))
             description = f"New: {date1} {self.name}"
+            description = self.description_generate()
             so_line_data = {
                 'order_id': sale_order_id.id,
                 'name': description,
@@ -198,6 +215,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 'timesheet_ids': [self.id]
             }
             _logger.info(f"DEF240 so_line_data: {so_line_data}")
+            
             so_line_id = self.env['sale.order.line'].create(so_line_data)
             _logger.info(f"     DEF242 so_line_id: {so_line_id}\n== END ==\n")
         elif len(so_line_ids) == 1:
@@ -214,58 +232,12 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         description = self.description_generate()
         _logger.info(f"DEF254 ===== Pendiente ===== \ndescription: {description}\n")
         self.so_line.name = description
+        self.so_line.product_uom_qty = self.unit_amount
         return True
     
 
 
-    def sale_order_line_create_xxxxx(self):
-        STOP
-        _logger.info(f"        DEF133 sale_order_line_create: {self}\n")
-        _logger.info(f"        DEF134 self: {self} - {self.so_line}\n=======ERROR =======\n")
-        
-        # buscar el sale order line asignado a ese timesheet_id
-        so_line_id = self.env['sale.order.line'].search([
-            ('timesheet_id','!=', False),
-            ('timesheet_id','=', self.id),
-        ])
-        _logger.info(f"            DEF141 line_id: {so_line_id.name}\n")
-        if len(so_line_id) > 0:
-            # Si lo encontró no hacer nada
-            _logger.info(f"        DEF144 Si esta ======= {self._origin.name}")
-            pass
-        else:
-            _logger.info(f"           DEF147 NO esta ======= {self._origin.name}")
-            
-            # Crear un sale order line y asignarlo a este timesheet
-            _logger.info(f"           DEF148 so_line_id: {so_line_id}")
-            
-            timezone_code = self._context.get('tz')
-            date1 = self.date #.astimezone( pytz.timezone(timezone_code))
-            description = f"New: {date1} {self.name}"
-            so_line_data = {
-                'order_id': self.task_id.sale_order_id.id,
-                'name': description,
-                'product_id': self.project_id.timesheet_product_id.id,
-                'product_uom': self.project_id.timesheet_product_id.uom_id.id,
-                'product_uom_qty': self.unit_amount,
-                'price_unit': self.project_id.timesheet_product_id.lst_price,
-                #'timesheet_id': self.id,
-                #'timesheet_ids': [(6, 0, [self.id])]
-            }
-            _logger.info(f"DEF163 so_line_data: {so_line_data}")
-            
-            so_line_id = so_line_id.create(so_line_data)
-            _logger.info(f"     DEF165 so_line_id: {so_line_id}\n== END ==\n")
-            return so_line_id # xxxxxxx
-            # {dir(so_line_id)}
-            _logger.info(f"DEF167 timesheet_ids: {so_line_id.timesheet_ids}\n== END ==\n")
-            
-            self.so_line = so_line_id
-            self.order_id = self.task_id.sale_order_id.id
-            
-            _logger.info(f"DEF172 timesheet_ids: {so_line_id.timesheet_ids}\n== END ==\n")
 
-        return
 
     def description_generate(self):
         _logger.info(f"DEF323 self: {self}")
@@ -277,6 +249,55 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             description = date_start.strftime('%a %b-%d %Y %I:%M %p') + " To: \n " + date_stop.strftime('%a %b-%d %I:%M %p')
         _logger.info(f"DEF330 description: {description} \n")
         return description
+
+    # def sale_order_line_create_xxxxx(self):
+    #     STOP
+    #     _logger.info(f"        DEF133 sale_order_line_create: {self}\n")
+    #     _logger.info(f"        DEF134 self: {self} - {self.so_line}\n=======ERROR =======\n")
+        
+    #     # buscar el sale order line asignado a ese timesheet_id
+    #     so_line_id = self.env['sale.order.line'].search([
+    #         ('timesheet_id','!=', False),
+    #         ('timesheet_id','=', self.id),
+    #     ])
+    #     _logger.info(f"            DEF141 line_id: {so_line_id.name}\n")
+    #     if len(so_line_id) > 0:
+    #         # Si lo encontró no hacer nada
+    #         _logger.info(f"        DEF144 Si esta ======= {self._origin.name}")
+    #         pass
+    #     else:
+    #         _logger.info(f"           DEF147 NO esta ======= {self._origin.name}")
+            
+    #         # Crear un sale order line y asignarlo a este timesheet
+    #         _logger.info(f"           DEF148 so_line_id: {so_line_id}")
+            
+    #         timezone_code = self._context.get('tz')
+    #         date1 = self.date #.astimezone( pytz.timezone(timezone_code))
+    #         description = f"New: {date1} {self.name}"
+    #         so_line_data = {
+    #             'order_id': self.task_id.sale_order_id.id,
+    #             'name': description,
+    #             'product_id': self.project_id.timesheet_product_id.id,
+    #             'product_uom': self.project_id.timesheet_product_id.uom_id.id,
+    #             'product_uom_qty': self.unit_amount,
+    #             'price_unit': self.project_id.timesheet_product_id.lst_price,
+    #             #'timesheet_id': self.id,
+    #             #'timesheet_ids': [(6, 0, [self.id])]
+    #         }
+    #         _logger.info(f"DEF163 so_line_data: {so_line_data}")
+            
+    #         so_line_id = so_line_id.create(so_line_data)
+    #         _logger.info(f"     DEF165 so_line_id: {so_line_id}\n== END ==\n")
+    #         return so_line_id # xxxxxxx
+    #         # {dir(so_line_id)}
+    #         _logger.info(f"DEF167 timesheet_ids: {so_line_id.timesheet_ids}\n== END ==\n")
+            
+    #         self.so_line = so_line_id
+    #         self.order_id = self.task_id.sale_order_id.id
+            
+    #         _logger.info(f"DEF172 timesheet_ids: {so_line_id.timesheet_ids}\n== END ==\n")
+
+    #     return
 
     # @api.onchange('date_start', 'date_stop', 'name', 'employee_id', 'date', 'work_entry_id', 'unit_amount')
     # @api.onchange('date_start')
