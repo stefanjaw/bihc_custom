@@ -26,11 +26,6 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         analytic_line_id = super(AccountAnalyticLineCustom, self).create( vals_list )
         _logger.info(f"DEF32 create analytic_line_id: {analytic_line_id}\n")
         
-        work_entry_id = analytic_line_id.work_entry_create()
-        if len(work_entry_id) == 1:
-            analytic_line_id.work_entry_id = work_entry_id
-        _logger.info(f"DEF33 create work_entry_id: {work_entry_id}\n")
-        
         so_line_id = analytic_line_id.so_line_create()
         _logger.info(f"DEF36 create so_line_id: {so_line_id}\n")
         if len(so_line_id) == 1:
@@ -373,7 +368,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     #         _logger.info(f"      Updated Record: \n{analytic_line}\n{analytic_line.so_line}\n  {analytic_line.so_line.timesheet_id}")
 
 
-    # def work_entry_missing(self):
+    # def xwork_entry_missing(self):
     #     _logger.info(f"DEF259 work_entry_missing: {self}\n")
     #     _logger.info(f"DEF260 ==== Comentado el for para recorrer todos los registros ====\n=====\n")
     #     STOP170_no_deberia_estar
