@@ -40,31 +40,35 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
 
     def write(self, vals):
         _logger.info(f"DEF44 write: {self} - vals: {vals} =======\n")
-
+        
         if len(self) == 0:
             _logger.info(f"  DEF47 def write NO vals")
             return self
-
+        
         vals_unit_amount = vals.get('unit_amount')
         vals_date_start = vals.get('date_start')
         vals_date_stop = vals.get('date_stop')
-
         _logger.info(f"DEF52 u: {vals_unit_amount} sta: {vals_date_start} sto: {vals_date_stop} =======\n")
-
-        # vals_fields = ["unit_amount", "date", "date_start", "date_stop"]
-        # for vals_field in vals_fields:
-        #     _logger.info(f"DEF56 {vals_field}")
-        #     if vals.get(vals_field) not in [False, None]: vals[vals_field] = vals.get(vals_field)
         
-        # STOP57
-        # if vals.get('unit_amount') not in [False, None]: vals['unit_amount'] = vals.get('unit_amount')
-        # if vals.get('date') not in [False, None]: vals['date'] = vals.get('date')
-        # if vals.get('date_start') not in [False, None]: vals['date_start'] = vals.get('date_start')
-        # if vals.get('date_stop') not in [False, None]: vals['date_stop'] = vals.get('date_stop')
-        STOP64
+        if vals_date_start not in [False, None] and vals_date_stop not in [False, None]:
+            date_format = "%Y-%m-%d %H:%M:%S"
+            deltatime_obj = datetime.datetime.strptime(vals_date_stop, date_format) \
+                          - datetime.datetime.strptime(vals_date_start, date_format)
+            vals['unit_amount'] = deltatime_obj.seconds/3600
+            _logger.info(f"DEF55 deltatime_obj: {deltatime_obj}\n")
+        else:
+            deltatime_obj = False
+        
+        
+        
         for analytic_line_id in self:
-
-            
+            if vals_date_start and vals_unit_amount:
+                date_format = "%Y-%m-%d %H:%M:%S"
+                date_new = datetime.datetime.strptime(vals_date_start, date_format) \
+                         + datetime.timedelta(hours=vals_unit_amount)
+                vals['date_stop'] = date_new.strftime(date_format)
+                _logger.info(f"DEF70 {vals}")
+                
             analytic_line_updated = super(AccountAnalyticLineCustom, analytic_line_id).write(vals)
             _logger.info(f"DEF57 write analytic_line_update: {analytic_line_updated} =======\n")
 
@@ -104,6 +108,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     @api.onchange('date_start','unit_amount', 'date_stop')
     def update_date_stop(self):
         _logger.info(f"DEF106 update_date_stop: {self}")
+        
         self.ensure_one()
         for analytic_line in self:
             if analytic_line._origin.date_start != analytic_line.date_start:
@@ -113,25 +118,63 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 _logger.info(f"DEF113 Diferente STOP ====\n")
                 
             if analytic_line._origin.unit_amount != analytic_line.unit_amount:
-                _logger.info(f"DEF116 Diferente Unit ====\n")
+                _logger.info(f"DEF116 Diferente Unit ====\n\n")
 
-            if analytic_line._origin.date_start != analytic_line.date_start and \
-               analytic_line._origin.date_stop != analytic_line.date_stop:
-                    deltatime = analytic_line.date_stop - analytic_line.date_start
-                    self.unit_amount = deltatime.seconds/3600
-            
-            if self.date_start and self.unit_amount:
+            if analytic_line._origin.unit_amount != analytic_line.unit_amount:
+                _logger.info(f"     DEF116a Solo unit_amount ====\n")
+                analytic_line.date_stop = analytic_line.date_start \
+                                        + datetime.timedelta(hours=analytic_line.unit_amount)
+            elif analytic_line._origin.date_start != analytic_line.date_start:
+                _logger.info(f"     DEF116b Solo unit_amount ====\n")
+                analytic_line.date_stop = analytic_line.date_start \
+                                        + datetime.timedelta(hours=analytic_line.unit_amount)
+            elif analytic_line._origin.date_start != analytic_line.date_start and \
+               analytic_line._origin.date_stop != analytic_line.date_stop and \
+               analytic_line._origin.unit_amount != analytic_line.unit_amount:
+                    _logger.info(f"     DEF116c All different update date_stop ====\n")
+                    analytic_line.date_stop = analytic_line.date_start \
+                                            + datetime.timedelta(hours=analytic_line.unit_amount)
+                    STOP132
+            elif analytic_line._origin.date_start == analytic_line.date_start and \
+               analytic_line._origin.date_stop == analytic_line.date_stop and \
+               analytic_line._origin.unit_amount != analytic_line.unit_amount:
+                    _logger.info(f"     DEF116d Update date_stop ====\n")
+                    analytic_line.date_stop = analytic_line.date_start \
+                                            + datetime.timedelta(hours=analytic_line.unit_amount)
+                    STOP139
+            elif analytic_line._origin.date_start != analytic_line.date_start and \
+               analytic_line._origin.date_stop != analytic_line.date_stop and \
+               analytic_line._origin.unit_amount == analytic_line.unit_amount:
+                    _logger.info(f"     DEF116e Update unit_amount ====\n")
+                    deltatime_obj = analytic_line.date_stop - analytic_line.date_start
+                    analytic_line.unit_amount = deltatime_obj.seconds/3600
+                    STOP146
+                    pass
+            elif analytic_line._origin.date_start != analytic_line.date_start and \
+               analytic_line._origin.date_stop != analytic_line.date_stop and \
+               analytic_line._origin.unit_amount != analytic_line.unit_amount:
+                    _logger.info(f"     DEF116f Update Unit Amount ====\n")
+                    deltatime_obj = analytic_line.date_stop - analytic_line.date_start
+                    _logger.info(f"            Update Unit Amount {deltatime_obj.seconds}====\n")
+                    analytic_line.unit_amount = deltatime_obj.seconds/3600
+                    STOP155
+            else:
+                # Unknown State condition
+                STOP127
+            '''
+            if analytic_line.date_start and analytic_line.unit_amount:
                 _logger.info(f"DEF126 update_date_stop bef: \n{analytic_line._origin.date_stop}  / after: \
                                 {analytic_line.date_stop}=======\n")
                 analytic_line.date_stop = analytic_line.date_start + datetime.timedelta(hours=analytic_line.unit_amount)
                 
-                timezone_code = self._context.get('tz')
+                timezone_code = analytic_line._context.get('tz')
                 if timezone_code not in [False, None]:
-                    date_start = self.date_start.astimezone( pytz.timezone(timezone_code))
+                    date_start = analytic_line.date_start.astimezone( pytz.timezone(timezone_code))
                     _logger.info(f"DEF129 update_date_stop date_start: {date_start.strftime('%d %m')}")
                     analytic_line.date = date_start
                     
                 _logger.info(f"DEF132 update_date_stop date: {{analytic_line.date}} END: {analytic_line.date_stop}")
+            '''
         return
         
 
