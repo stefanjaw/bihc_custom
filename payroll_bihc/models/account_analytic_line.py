@@ -14,6 +14,10 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     work_entry_id = fields.Many2one('hr.work.entry')
     date_start = fields.Datetime( )
     date_stop = fields.Datetime( )
+    
+    allday = fields.Boolean()
+    start = fields.Datetime( )
+    stop = fields.Datetime( )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -40,13 +44,26 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         if len(self) == 0:
             _logger.info(f"  DEF47 def write NO vals")
             return self
+
+        vals_unit_amount = vals.get('unit_amount')
+        vals_date_start = vals.get('date_start')
+        vals_date_stop = vals.get('date_stop')
+
+        _logger.info(f"DEF52 u: {vals_unit_amount} sta: {vals_date_start} sto: {vals_date_stop} =======\n")
+
+        # vals_fields = ["unit_amount", "date", "date_start", "date_stop"]
+        # for vals_field in vals_fields:
+        #     _logger.info(f"DEF56 {vals_field}")
+        #     if vals.get(vals_field) not in [False, None]: vals[vals_field] = vals.get(vals_field)
         
+        # STOP57
+        # if vals.get('unit_amount') not in [False, None]: vals['unit_amount'] = vals.get('unit_amount')
+        # if vals.get('date') not in [False, None]: vals['date'] = vals.get('date')
+        # if vals.get('date_start') not in [False, None]: vals['date_start'] = vals.get('date_start')
+        # if vals.get('date_stop') not in [False, None]: vals['date_stop'] = vals.get('date_stop')
+        STOP64
         for analytic_line_id in self:
-            
-            #timezone_code = self._context.get('tz')
-            #if timezone_code not in [False, None]:
-            #    date_start = self.date_start.astimezone( pytz.timezone(timezone_code))
-            vals['date'] = analytic_line_id.date_start
+
             
             analytic_line_updated = super(AccountAnalyticLineCustom, analytic_line_id).write(vals)
             _logger.info(f"DEF57 write analytic_line_update: {analytic_line_updated} =======\n")
@@ -82,23 +99,39 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         res = super(AccountAnalyticLineCustom, self).unlink()
         return res
 
+
     
-    @api.onchange('date_start','unit_amount')
+    @api.onchange('date_start','unit_amount', 'date_stop')
     def update_date_stop(self):
-        _logger.info(f"DEF66 update_date_stop: {self} =======\n")
+        _logger.info(f"DEF106 update_date_stop: {self}")
         self.ensure_one()
         for analytic_line in self:
+            if analytic_line._origin.date_start != analytic_line.date_start:
+                _logger.info(f"DEF110 Diferente START ====\n")
+                
+            if analytic_line._origin.date_stop != analytic_line.date_stop:
+                _logger.info(f"DEF113 Diferente STOP ====\n")
+                
+            if analytic_line._origin.unit_amount != analytic_line.unit_amount:
+                _logger.info(f"DEF116 Diferente Unit ====\n")
+
+            if analytic_line._origin.date_start != analytic_line.date_start and \
+               analytic_line._origin.date_stop != analytic_line.date_stop:
+                    deltatime = analytic_line.date_stop - analytic_line.date_start
+                    self.unit_amount = deltatime.seconds/3600
+            
             if self.date_start and self.unit_amount:
-                _logger.info(f"DEF70 update_date_stop")
+                _logger.info(f"DEF126 update_date_stop bef: \n{analytic_line._origin.date_stop}  / after: \
+                                {analytic_line.date_stop}=======\n")
                 analytic_line.date_stop = analytic_line.date_start + datetime.timedelta(hours=analytic_line.unit_amount)
                 
                 timezone_code = self._context.get('tz')
                 if timezone_code not in [False, None]:
                     date_start = self.date_start.astimezone( pytz.timezone(timezone_code))
-                    _logger.info(f"DEF76 update_date_stop date_start: {date_start.strftime('%d %m')}")
+                    _logger.info(f"DEF129 update_date_stop date_start: {date_start.strftime('%d %m')}")
                     analytic_line.date = date_start
                     
-                _logger.info(f"DEF79 update_date_stop date: {{analytic_line.date}} END: {analytic_line.date_stop}")
+                _logger.info(f"DEF132 update_date_stop date: {{analytic_line.date}} END: {analytic_line.date_stop}")
         return
         
 
