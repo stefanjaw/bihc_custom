@@ -21,41 +21,41 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
 
     @api.model_create_multi
     def create(self, vals_list):
-        _logger.info(f"DEF20 create: {self} - vals_list: {vals_list}\n")
+        _logger.info(f"DEF24 create: {self} - vals_list: {vals_list}\n")
         if len(vals_list) == 0 and len(self) == 0:
             _logger.info(f"  DEF22 def create NO vals_list")
             return self
 
         analytic_line_id = super(AccountAnalyticLineCustom, self).create( vals_list )
-        _logger.info(f"DEF32 create analytic_line_id: {analytic_line_id}\n")
+        _logger.info(f"DEF30 create analytic_line_id: {analytic_line_id}\n")
         
         so_line_id = analytic_line_id.so_line_create()
-        _logger.info(f"DEF36 create so_line_id: {so_line_id}\n")
+        _logger.info(f"DEF33 create so_line_id: {so_line_id}\n")
         if len(so_line_id) == 1:
             analytic_line_id.so_line = so_line_id
-        _logger.info(f"DEF38 create so_line_id: {so_line_id}\n")
+        _logger.info(f"DEF36 create so_line_id: {so_line_id}\n")
 
-        _logger.info(f"DEF40 created: {analytic_line_id}\n")
+        _logger.info(f"DEF38 created: {analytic_line_id}\n")
         return analytic_line_id
 
     def write(self, vals):
-        _logger.info(f"DEF44 write: {self} - vals: {vals} =======\n")
+        _logger.info(f"DEF42 write: {self} - vals: {vals} =======\n")
         
         if len(self) == 0:
-            _logger.info(f"  DEF47 def write NO vals")
+            _logger.info(f"  DEF45 def write NO vals")
             return self
         
         vals_unit_amount = vals.get('unit_amount')
         vals_date_start = vals.get('date_start')
         vals_date_stop = vals.get('date_stop')
-        _logger.info(f"DEF52 u: {vals_unit_amount} sta: {vals_date_start} sto: {vals_date_stop} =======\n")
+        _logger.info(f"DEF51 u: {vals_unit_amount} sta: {vals_date_start} sto: {vals_date_stop} =======\n")
         
         if vals_date_start not in [False, None] and vals_date_stop not in [False, None]:
             date_format = "%Y-%m-%d %H:%M:%S"
             deltatime_obj = datetime.datetime.strptime(vals_date_stop, date_format) \
                           - datetime.datetime.strptime(vals_date_start, date_format)
             vals['unit_amount'] = deltatime_obj.seconds/3600
-            _logger.info(f"DEF55 deltatime_obj: {deltatime_obj}\n")
+            _logger.info(f"DEF58 deltatime_obj: {deltatime_obj}\n")
         else:
             deltatime_obj = False
         
@@ -68,20 +68,24 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                          + datetime.timedelta(hours=vals_unit_amount)
                 vals['date_stop'] = date_new.strftime(date_format)
                 _logger.info(f"DEF70 {vals}")
-                
+            elif vals_date_start in [False, None] and vals_unit_amount not in [False, None]:
+                vals['date_stop'] = analytic_line_id.date_start \
+                                  + datetime.timedelta(hours=vals_unit_amount)
+                _logger.info(f"DEF75 {vals}")
+            
             analytic_line_updated = super(AccountAnalyticLineCustom, analytic_line_id).write(vals)
-            _logger.info(f"DEF57 write analytic_line_update: {analytic_line_updated} =======\n")
+            _logger.info(f"DEF77 write analytic_line_update: {analytic_line_updated} =======\n")
 
             sale_order_int = analytic_line_id.task_id.action_view_so().get('res_id')
-            _logger.info(f"DEF60 sale_order_int: {sale_order_int}")
+            _logger.info(f"DEF80 sale_order_int: {sale_order_int}")
             sale_order_id = self.env['sale.order'].browse( sale_order_int )
-            _logger.info(f"DEF62 sale_order_id: {sale_order_id}")
+            _logger.info(f"DEF82 sale_order_id: {sale_order_id}")
             
             work_entry_updated = analytic_line_id.work_entry_write()
-            _logger.info(f"DEF65 write work_entry_updated: {work_entry_updated} =======\n")
+            _logger.info(f"DEF85 write work_entry_updated: {work_entry_updated} =======\n")
     
             so_line_updated = analytic_line_id.so_line_write()
-            _logger.info(f"DEF68 write so_line_updated: {so_line_updated} =======\n")
+            _logger.info(f"DEF88 write so_line_updated: {so_line_updated} =======\n")
         
         return True
 
