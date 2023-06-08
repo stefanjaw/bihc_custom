@@ -27,11 +27,12 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         _logger.info(f"Creating record: {self}\n")
         
         analytic_line_id = super(AccountAnalyticLineCustom, self).create( vals_list )
-        
+        _logger.info(f"DEF30 a")
         so_line_id = analytic_line_id.so_line_create()
+        _logger.info(f"DEF30 b")
         if len(so_line_id) == 1:
             analytic_line_id.so_line = so_line_id
-        
+        _logger.info(f"DEF30 c")
         return analytic_line_id
 
     def write(self, vals):
@@ -61,16 +62,17 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             elif vals_date_start in [False, None] and vals_unit_amount not in [False, None]:
                 vals['date_stop'] = analytic_line_id.date_start \
                                   + datetime.timedelta(hours=vals_unit_amount)
-            
+            _logger.info(f"DEF64 vals: {vals}\n")
             analytic_line_updated = super(AccountAnalyticLineCustom, analytic_line_id).write(vals)
+            _logger.info(f"DEF64b vals: {vals} END\n")
             
             sale_order_int = analytic_line_id.task_id.action_view_so().get('res_id')
             sale_order_id = self.env['sale.order'].browse( sale_order_int )
-            
+            _logger.info(f"DEF64c vals: {vals} END\n")
             work_entry_updated = analytic_line_id.work_entry_write()
-                
+            _logger.info(f"DEF64d vals: {vals} END\n")
             so_line_updated = analytic_line_id.so_line_write()
-        
+            _logger.info(f"DEF64e vals: {vals} END\n")
         return True
 
     def unlink(self):
@@ -97,8 +99,11 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
 
         self.ensure_one()
         for analytic_line in self:
-            
-            if analytic_line._origin.unit_amount != analytic_line.unit_amount:
+            _logger.info(f"DEF100 {self.date_start},{self.unit_amount}, {self.date_stop} ")
+            if    analytic_line.date_start in [False, None] \
+              and analytic_line.date_stop in [False, None]:
+                continue
+            elif analytic_line._origin.unit_amount != analytic_line.unit_amount:
                 analytic_line.date_stop = analytic_line.date_start \
                                         + datetime.timedelta(hours=analytic_line.unit_amount)
             elif analytic_line._origin.date_start != analytic_line.date_start:
@@ -170,26 +175,40 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         return work_entry_id
     
     def so_line_create(self):
-        sale_order_int = self.task_id.action_view_so().get('res_id')
+        _logger.info(f"DEF178 a: {self} - order_id: {self.order_id}")
         
-        if sale_order_int in [None, False]:
+        if len(self.order_id ) == 0:
             self.task_id.action_fsm_validate()
-            sale_order_int = self.task_id.action_view_so().get('res_id')
-            sale_order_id = self.env['sale.order'].browse( sale_order_int )
-            sale_order_id.order_line.write({
-                'timesheet_id': self.id,
-                'timesheet_ids': [self.id]
-            })
-            
-        sale_order_id = self.env['sale.order'].browse( sale_order_int )
-       
+            _logger.info(f"DEF183 self: {self} order_id: {self.order_id}\n")
+            #sale_order_int = self.task_id.action_view_so().get('res_id')
+            #_logger.info(f"DEF185 sale_order_int: {sale_order_int}\n")
+            #sale_order_id = self.env['sale.order'].browse( sale_order_int )
+        
+        if len(self.order_id) == 0:
+            _logger.info(f"DEF188 Dont Create sale order line: {self.order_id.order_line}\n")
+            so_line_id = self.order_id.order_line
+            return so_line_id
+        else:
+            pass
+
+        sale_order_id = self.order_id
+        _logger.info(f"DEF194 self.order_id: {self.order_id}\n")
+        
+        sale_order_id.order_line.write({
+            'timesheet_id': self.id,
+            'timesheet_ids': [self.id]
+        })
+        
+        #_logger.info(f"DEF201 self.order_id: {sale_order_id}\n")
+        #_logger.info(f"DEF202 c")
+        #sale_order_id = self.env['sale.order'].browse( sale_order_int )
+        _logger.info(f"DEF204 d  sale_order_id: {sale_order_id}")
         so_line_ids = self.env['sale.order.line'].search([
             ('timesheet_id','!=', False),
             ('timesheet_id','=', self.id),
         ])
-
+        _logger.info(f"DEF178 e sale_order_id: {sale_order_id} - so_line_ids: {so_line_ids}")
         if len(so_line_ids) == 0:
-            
             date1 = self.date
             description = f"New: {date1} {self.name}"
             description = self.description_generate()
@@ -211,7 +230,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         else:
             msg = f"Error: Multiples Registers: {so_line_ids}"
             raise ValidationError(msg)
-        
+        _logger.info(f"DEF178 z")
         return so_line_id
         
     def so_line_write(self):
