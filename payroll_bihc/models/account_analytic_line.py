@@ -12,8 +12,8 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     _inherit = 'account.analytic.line'
     
     work_entry_id = fields.Many2one('hr.work.entry')
-    date_start = fields.Datetime( )
-    date_stop = fields.Datetime( )
+    date_start = fields.Datetime( default=0 )
+    date_stop = fields.Datetime( default=0)
     
     allday = fields.Boolean()
     start = fields.Datetime( )
@@ -97,15 +97,20 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
 
         self.ensure_one()
         for analytic_line in self:
+            
             if analytic_line._origin.unit_amount != analytic_line.unit_amount:
                 analytic_line.date_stop = analytic_line.date_start \
                                         + datetime.timedelta(hours=analytic_line.unit_amount)
             elif analytic_line._origin.date_start != analytic_line.date_start:
                 analytic_line.date_stop = analytic_line.date_start \
                                         + datetime.timedelta(hours=analytic_line.unit_amount)
+            elif analytic_line.date_start in [False, None]  \
+             and analytic_line.date_stop in [False, None] \
+             and analytic_line.unit_amount == 0:
+                 continue
             else:
                 # Unknown State condition
-                msg = f"Error with params: Date Start: {analytic_line._origin.date_start} Date Stop: {analytic_line._origin.date_stop} Units: {analytic_line._origin.unit_amount}"
+                msg = f"Error Code with params:\n  Date Start: {analytic_line._origin.date_start}\n  Date Stop: {analytic_line._origin.date_stop}\n  Units: {analytic_line._origin.unit_amount}"
                 raise ValidationError(msg)
         
         return
