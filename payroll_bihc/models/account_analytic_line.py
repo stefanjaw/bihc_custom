@@ -41,7 +41,8 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             analytic_line_id.so_line = so_line_id
         _logger.info(f"    DEF30 d analytic_line_id.so_line: {analytic_line_id.so_line}\n")
         _logger.info(f"    DEF30 e analytic_line_id.so_line.timesheet_id: {analytic_line_id.so_line.timesheet_id}\n")
-        STOP44
+        _logger.info(f"    DEF30 f analytic_line_id.so_line.timesheet_id: {analytic_line_id.order_id.order_line}\n")
+        
         return analytic_line_id
 
     def write(self, vals):
@@ -82,9 +83,11 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             #sale_order_id = self.env['sale.order'].browse( sale_order_int )
             
             work_entry_updated = analytic_line_id.work_entry_write()
-            
-            if len(analytic_line_id.order_id) > 0:
-                _logger.info(f"    DEF64e vals: {vals} END\n")
+
+            _logger.info(f"DEF87a analytic_line_id.order_id: {analytic_line_id.task_id.sale_order_id}\n")
+            _logger.info(f"DEF87b ===== so_line_write =====\n")
+            if len(analytic_line_id.task_id.sale_order_id) > 0:
+                _logger.info(f"    DEF90 analytic_line_id: {analytic_line_id} - vals: {vals} END\n")
                 so_line_updated = analytic_line_id.so_line_write()
         
         return True
@@ -138,7 +141,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         _logger.info(f"Updating Work Entry for account_analytic_line record: {self}\n")
         self.ensure_one()
         #work_entry_id = self.work_entry_id
-        _logger.info(f"DEF133 self.work_entry_id: {self.work_entry_id}\n")
+        _logger.info(f"    DEF133 self.work_entry_id: {self.work_entry_id}\n")
         if len( self.work_entry_id ) == 0:
             work_entry_ids = self.work_entry_id.search([
                 ('account_analytic_line_id', '!=', False),
@@ -159,11 +162,11 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             self.work_entry_id = work_entry_id
             _logger.info(f"  DEF168 self.work_entry_id: {self.work_entry_id}\n")
         
-        _logger.info(f"DEF169 self: {self}\n{self.unit_amount}\n{self.date_start}\n{self.date_stop}\n")
+        _logger.info(f"    DEF169 self: {self}\n{self.unit_amount}\n{self.date_start}\n{self.date_stop}\n")
         
         date_stop = self.date_start \
                   + datetime.timedelta(hours=self.unit_amount)
-        _logger.info(f"DEF172 date_start: {self.date_start } - date_stop: {date_stop}\n")
+        _logger.info(f"    DEF172 date_start: {self.date_start } - date_stop: {date_stop}\n")
         
         if len( self.work_entry_id ) == 0:
             msg = f"Error: No Work Entry found for: {self}"
@@ -211,7 +214,10 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             
             self.task_id.sale_line_id = False
             _logger.info(f"    DEF190e self.task_id.sale_line_id: {self.task_id.sale_line_id}\n")
-
+            _logger.info(f"    DEF190f self.order_id.order_line: {self.task_id.sale_order_id.order_line}\n")
+            self.task_id.sale_order_id.order_line.timesheet_id = self.id
+            self.task_id.sale_order_id.order_line.timesheet_ids = [self.id]
+        
         if len(self.task_id.sale_order_id) == 0:
             #so_line_id = sale_order_id.order_line
             _logger.info(f"    DEF202 No SO related in task_id -  Dont Create sale order line: {self.task_id.sale_order_id.order_line}\n")
@@ -219,15 +225,15 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         else:
             pass
 
-        _logger.info(f"    DEF207 sale_order_id: {self.task_id.sale_order_id}\n")
+        _logger.info(f"    DEF226 sale_order_id: {self.task_id.sale_order_id}\n")
         
         so_line_ids = self.env['sale.order.line'].search([
             ('order_id', '=', self.task_id.sale_order_id.id),
-            ('timesheet_ids','!=', False),
-            ('timesheet_ids','in', [self.id]),
+            ('timesheet_id','!=', False),
+            ('timesheet_id','in', [self.id]),
         ])
-        _logger.info(f"    DEF214 so_line_ids: {so_line_ids}")
-
+        _logger.info(f"    DEF233 so_line_ids: {so_line_ids}")
+        
         '''
         if len(so_line_ids) == 0:
             _logger.info(f"    DEF217 so_line_ids: {so_line_ids}\n")
@@ -235,13 +241,13 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             return so_line_id
         '''
         
-        _logger.info(f"    DEF221e self.task_id.sale_order_id: {self.task_id.sale_order_id}")
-        _logger.info(f"    DEF221f self.task_id.sale_order_id.order_line: {self.task_id.sale_order_id.order_line}")
-        _logger.info(f"    DEF221g so_line_ids: {so_line_ids}\n")
+        _logger.info(f"    DEF242e self.task_id.sale_order_id: {self.task_id.sale_order_id}")
+        _logger.info(f"    DEF243f self.task_id.sale_order_id.order_line: {self.task_id.sale_order_id.order_line}")
+        
+        _logger.info(f"    DEF247g so_line_ids: {so_line_ids}\n")
         
         if len(so_line_ids) == 0:
             date1 = self.date
-            #description = f"New: {date1} {self.name}"
             description = self.description_generate()
             so_line_data = {
                 'order_id': self.task_id.sale_order_id.id,
@@ -256,27 +262,46 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             
             so_line_id = self.env['sale.order.line'].create(so_line_data)
         elif len(so_line_ids) == 1:
-            so_line_ids.timesheet_id = so_line_ids.timesheet_ids[0]
-            _logger.info(f"DEF217 so_line_ids: {so_line_ids} - {so_line_ids.timesheet_id} - {so_line_ids.timesheet_ids}\n")
+            _logger.info(f"    DEF268 so_line_ids: {so_line_ids} - timesheet_ids: {so_line_ids.timesheet_ids}\n")
+            so_line_ids.timesheet_id = so_line_ids[0].timesheet_ids
+            _logger.info(f"    DEF270 so_line_ids: {so_line_ids} - {so_line_ids.timesheet_id} - {so_line_ids.timesheet_ids}\n")
             so_line_id = so_line_ids
+            
             pass
         else:
             msg = f"Error: Multiples Registers: {so_line_ids}"
             raise ValidationError(msg)
-        _logger.info(f"    DEF245za end so_line_id: {so_line_id}\n")
-        _logger.info(f"    DEF245zb self.task_id.sale_order_id.order_line: {self.task_id.sale_order_id.order_line}")
         
-        _logger.info(f"DEF269 Sale Order: {self.task_id.sale_order_id}")
+        _logger.info(f"    DEF279za end so_line_id: {so_line_id}\n")
+        _logger.info(f"    DEF280zb self.task_id.sale_order_id.order_line: {self.task_id.sale_order_id.order_line}")
+        
+        _logger.info(f"DEF283 Sale Order: {self.task_id.sale_order_id}")
         for so_line_id in self.task_id.sale_order_id.order_line:
-            _logger.info(f"DEF271 so_line_id: {so_line_id} - timesheet_ids: {so_line_id.timesheet_ids}")
+            _logger.info(f"DEF285 so_line_id: {so_line_id} - timesheet_ids: {so_line_id.timesheet_ids}")
+        
         return so_line_id
         
     def so_line_write(self):
-        _logger.info(f"  DEF239 Updating Sale order Line: {self.so_line}\n")
-        description = self.description_generate()
-        self.so_line.name = description
-        self.so_line.product_uom_qty = self.unit_amount
-        return True
+        _logger.info(f"  DEF285 account_analytic_line: {self} Updating Sale order Line: {self.so_line}\n")
+        
+        sale_order_id = self.task_id.sale_order_id
+        _logger.info(f"def287 sale_order_id: {sale_order_id}\n")
+        
+        if len(self.so_line) == 1:
+            description = self.description_generate()
+            self.so_line.name = description
+            self.so_line.product_uom_qty = self.unit_amount
+            result = True
+        elif len(self.so_line) == 0:
+            _logger.info(f"  DEF296 order: {sale_order_id} without line OJO\n\n")
+            so_line_id = self.so_line_create()
+            _logger.info(f"DEF298 self: {self} so_line_id: {so_line_id}")
+            result = True
+        else:
+            error_greater_zero
+            _logger.info(f"def299 self.task_id.sale_order_id: {self.task_id.sale_order_id}\n")
+            result = False
+        return result
 
     def description_generate(self):
         description = ""
