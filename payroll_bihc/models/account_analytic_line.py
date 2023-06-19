@@ -15,11 +15,6 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     date_start = fields.Datetime( default=0 )
     date_stop = fields.Datetime( default=0)
     
-    allday = fields.Boolean()
-    start = fields.Datetime( )
-    stop = fields.Datetime( )
-
-    
     @api.model_create_multi
     def create(self, vals_list):
         _logger.info(f"Creating timesheet record: {self} with vals: {vals_list}\n")
@@ -73,7 +68,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         _logger.info(f"    DEF73 result: {result}\n\n")
 
         self.work_entry_write()
-        
+        self.so_line_write()
         self.so_lines_check()
         #STOP73
         
@@ -314,6 +309,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             description = self.description_generate()
             so_line_id.name = description
             so_line_id.product_uom_qty = self.unit_amount
+            so_line_id.qty_delivered = self.unit_amount
             result = True
         elif len(so_line_ids) > 1:
             for record in so_line_ids:
