@@ -62,12 +62,23 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         vals_unit_amount = vals.get('unit_amount')
         vals_date_start = vals.get('date_start')
         vals_date_stop = vals.get('date_stop')
-
+        _logger.info(f"    DEF65 vals_date_start: {vals_date_start} / {vals_unit_amount} ")
         _logger.info(f"    DEF66  work_entry_update: {self}")
+        if vals_date_start in [False, None] and vals_unit_amount not in [False, None]:
+            vals['date_start'] = self.date_start
+            vals['date_stop'] = self.date_start \
+                                  + datetime.timedelta(hours=vals_unit_amount)
+        _logger.info(f"  DEF69 vals: {vals}")
+        result = super(AccountAnalyticLineCustom, self).write( vals )
+        _logger.info(f"    DEF73 result: {result}\n\n")
+
         self.work_entry_write()
         
-        return super(AccountAnalyticLineCustom, self).write( vals )
-        STOP66
+        self.so_lines_check()
+        #STOP73
+        
+        return result
+
     '''
         if vals_date_start not in [False, None] and vals_date_stop not in [False, None]:
             date_format = "%Y-%m-%d %H:%M:%S"
@@ -293,9 +304,10 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         
         
         if len(so_line_ids) == 0:
-            _logger.info(f"    DEF246 ====")
-            so_line_id = self.so_line_create()
-            result = True
+            raise ValidationError(f"Not sale order lines for: {self}")
+            #_logger.info(f"    DEF246 ====")
+            #so_line_id = self.so_line_create()
+            result = False
         elif len(so_line_ids) == 1:
             so_line_id = so_line_ids[0]
             _logger.info(f"    DEF251 ====")
@@ -334,7 +346,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             raise ValidationError("Error: Many sale order lines: {self.so_line}")
             result = False
         '''
-        #STOP246
+
         _logger.info(f"    DEF285 so_line_write ==== End \n")
         return result
 
@@ -346,3 +358,21 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             date_stop = self.date_stop.astimezone(  pytz.timezone(timezone_code))
             description = date_start.strftime('%a %b-%d %Y %I:%M %p') + " To: \n " + date_stop.strftime('%a %b-%d %I:%M %p')
         return description
+    
+    def so_lines_check(self):
+        _logger.info(f"DEF358 self: {self.order_id.order_line}\n")
+        for order_line in self.order_id.order_line:
+            if len(order_line.timesheet_id) == 1 \
+                and order_line.timesheet_id != order_line.timesheet_ids:
+                _logger.info(f"     DEF362 Diff: {order_line} / {order_line.timesheet_id} vrs {order_line.timesheet_ids}")
+                _logger.info(f"       DEF363 cambiando timesheet_ids:")
+                order_line.timesheet_ids = [order_line.timesheet_id.id]
+                _logger.info(f"       DEF364 Diff: {order_line} / {order_line.timesheet_id} vrs {order_line.timesheet_ids}")
+                pass
+            elif len(order_line.timesheet_id) == 1 \
+                and order_line.timesheet_id == order_line.timesheet_ids:
+
+                _logger.info(f"     DEF367 Iguales: {order_line} / {order_line.timesheet_id} vrs {order_line.timesheet_ids}")
+                
+
+        #STOP354
