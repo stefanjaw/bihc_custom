@@ -19,35 +19,56 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     start = fields.Datetime( )
     stop = fields.Datetime( )
 
+    
     @api.model_create_multi
     def create(self, vals_list):
-        if len(vals_list) == 0 and len(self) == 0:
-            return self
-            
-        _logger.info(f"Creating record: {self}\n")
+        _logger.info(f"Creating timesheet record: {self} with vals: {vals_list}\n")
+        
+        if  len(self) == 0 and len(vals_list) == 0:
+            _logger.info(f"   DEF27 self and vals_list == 0 return\n\n")
+            return super(AccountAnalyticLineCustom, self).create( vals_list )
         
         if len(vals_list) == 1:
             vals_list[0]['work_entry_id'] = False
             vals_list[0]['so_line'] = False
         
         analytic_line_id = super(AccountAnalyticLineCustom, self).create( vals_list )
+        
+        _logger.info(f"  DEF36 analytic_line_id: {analytic_line_id}\n")
 
-        so_line_id = analytic_line_id.so_line_create()
-        if len(so_line_id) == 1:
-            analytic_line_id.so_line = so_line_id
+        if len(analytic_line_id.task_id.sale_order_id) == 0:
+            _logger.info(f"  DEF43 antes del action_fsm_validate\n")
+            result = analytic_line_id.task_id.action_fsm_validate()
+            analytic_line_id.order_id.order_line.timesheet_id = analytic_line_id.id
+        else:
+            _logger.info(f"  DEF51 analytic_line_id.task_id.sale_order_id: {analytic_line_id.task_id.sale_order_id}\n")
+            so_line_id = analytic_line_id.so_line_create()
+            if len(so_line_id) == 1:
+                analytic_line_id.so_line = so_line_id
+        
+        work_entry_id = analytic_line_id.work_entry_create()
+        _logger.info(f"  DEF58 work_entry_id: {work_entry_id}\n")
+        analytic_line_id.work_entry_id = work_entry_id.id
         
         return analytic_line_id
-
+    
+    
     def write(self, vals):
-        _logger.info(f"Updating records: {self}\n")
+        _logger.info(f"Updating timesheet records: {self} - {vals}\n")
         
         if len(self) == 0:
-            return self
+            return super(AccountAnalyticLineCustom, self).write( vals )
         
         vals_unit_amount = vals.get('unit_amount')
         vals_date_start = vals.get('date_start')
         vals_date_stop = vals.get('date_stop')
+
+        _logger.info(f"    DEF66  work_entry_update: {self}")
+        self.work_entry_write()
         
+        return super(AccountAnalyticLineCustom, self).write( vals )
+        STOP66
+    '''
         if vals_date_start not in [False, None] and vals_date_stop not in [False, None]:
             date_format = "%Y-%m-%d %H:%M:%S"
             deltatime_obj = datetime.datetime.strptime(vals_date_stop, date_format) \
@@ -67,7 +88,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                                   + datetime.timedelta(hours=vals_unit_amount)
 
             result = super(AccountAnalyticLineCustom, analytic_line_id).write(vals)
-            _logger.info(f"DEF70 analytic_line_updated: {result}\n")
+            _logger.info(f"    DEF70 analytic_line_updated: {result}\n")
             
             work_entry_updated = analytic_line_id.work_entry_write()
 
@@ -75,7 +96,8 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                 so_line_updated = analytic_line_id.so_line_write()
         
         return True
-
+    '''
+    
     def unlink(self):
         if len(self) == 0:
             return super(AccountAnalyticLineCustom, self).unlink()
@@ -95,6 +117,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         
         if len(so_line_ids) > 0:
             so_line_ids.product_uom_qty = 0
+            so_line_ids.qty_delivered = 0
             
         res = super(AccountAnalyticLineCustom, self).unlink()
         
@@ -128,14 +151,18 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
     
     def work_entry_write(self):
         _logger.info(f"Updating Work Entry for: {self}\n")
+        
         self.ensure_one()
-
+        
         if len( self.work_entry_id ) == 0:
+            _logger.info(f"    No Work Entry defined for: {self}\n")
+            return False
             work_entry_ids = self.work_entry_id.search([
                 ('account_analytic_line_id', '!=', False),
                 ('account_analytic_line_id', '=', self.id)
             ])
-
+            _logger.info(f"    DEF161 work_entry_ids: {work_entry_ids}\n")
+            STOP161
             if len(work_entry_ids) == 0:
                 work_entry_id = self.work_entry_create()
             elif len(work_entry_ids) == 1:
@@ -165,6 +192,7 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
                     'account_analytic_line_id': self._origin.id
             }
             updated = self.work_entry_id.write( vals_list )
+        
         return updated
     
     def work_entry_create(self):
@@ -182,67 +210,88 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
         return work_entry_id
     
     def so_line_create(self):
-        _logger.info(f"  Sale Order Line Create for: {self}\n")
-
+        _logger.info(f"  Sale Order Line Create for: {self}/{self.id} - {self.task_id.sale_order_id}\n")
+        #_logger.info(f"    DEF186 self.task_id.sale_order_id.order_line: - {self.task_id.sale_order_id.order_line}\n")
+        _logger.info(f"    DEF187 Sale Order Line task_id: {self.task_id}\n")
+        
+        '''
         if len(self.task_id.sale_order_id ) == 0:
-            _logger.info(f"    DEF187 ====")
-            result = self.task_id.action_fsm_validate()
+            _logger.info(f"    DEF190 ==== FSM Next")
 
+            
+            result = self.task_id.action_fsm_validate()
+            
             self.task_id.sale_line_id = False
             self.task_id.sale_order_id.order_line.timesheet_id = self.id
+
+            _logger.info(f"      DEF197 order_id: {self.task_id.sale_order_id}\n")
+            _logger.info(f"      DEF198 order_line.timesheet_id: {self.task_id.sale_order_id.order_line.timesheet_id}\n")
+        '''
+        '''
             self.task_id.sale_order_id.order_line.timesheet_ids = [self.id]
+            self.task_id.sale_order_id.order_line.write({
+              'timesheet_ids': [self.id]
+            })
+            #.timesheet_ids = [self.id]
+        '''
         
-        if len(self.task_id.sale_order_id) == 0:
-            _logger.info(f"  Warning: No SO related in task_id -  Dont Create sale order line: {self.task_id.sale_order_id.order_line}\n")
-            return self.task_id.sale_order_id.order_line
-        else:
-            pass
+        # if len(self.task_id.sale_order_id) == 0:
+        #     _logger.info(f"  Warning: No SO related in task_id -  Dont Create sale order line: {self.task_id.sale_order_id.order_line}\n")
+        #     return self.task_id.sale_order_id.order_line
+        # else:
+        #     pass
         _logger.info(f"    DEF199 ====")
-        so_line_ids = self.env['sale.order.line'].search([
-            ('order_id', '=', self.task_id.sale_order_id.id),
-            ('timesheet_id','!=', False),
-            ('timesheet_id','in', [self.id]),
-        ])
+        # so_line_ids = self.env['sale.order.line'].search([
+        #     ('order_id', '=', self.task_id.sale_order_id.id),
+        #     ('timesheet_id','!=', False),
+        #     ('timesheet_id','in', [self.id]),
+        # ])
         
-        if len(so_line_ids) == 0:
-            _logger.info(f"    DEF207 ====")
-            date1 = self.date
-            description = self.description_generate()
-            so_line_data = {
-                'order_id': self.task_id.sale_order_id.id,
-                'name': description,
-                'product_id': self.project_id.timesheet_product_id.id,
-                'product_uom': self.project_id.timesheet_product_id.uom_id.id,
-                'product_uom_qty': self.unit_amount,
-                'price_unit': self.project_id.timesheet_product_id.lst_price,
-                'timesheet_id': self.id,
-                'timesheet_ids': [self.id]
-            }
-            
-            so_line_id = self.env['sale.order.line'].create(so_line_data)
-        elif len(so_line_ids) == 1:
-            _logger.info(f"    DEF223 ====")
-            so_line_ids.timesheet_id = so_line_ids[0].timesheet_ids
-            so_line_id = so_line_ids
-            pass
-        else:
-            msg = f"Error: Multiples Registers: {so_line_ids}"
-            raise ValidationError(msg)
+        # if len(so_line_ids) == 0:
+        _logger.info(f"    DEF207 ==== len(so_line_ids) == 0")
+        date1 = self.date
+        description = self.description_generate()
+        so_line_data = {
+            'order_id': self.task_id.sale_order_id.id,
+            'name': description,
+            'product_id': self.project_id.timesheet_product_id.id,
+            'product_uom': self.project_id.timesheet_product_id.uom_id.id,
+            'product_uom_qty': self.unit_amount,
+            'price_unit': self.project_id.timesheet_product_id.lst_price,
+            'timesheet_id': self.id,
+            'timesheet_ids': [self.id]
+        }
+        _logger.info(f"      DEF221 creating sale_order_line\n")
+        so_line_id = self.env['sale.order.line'].create(so_line_data)
+        _logger.info(f"      DEF223 creatd: {so_line_id}\n")
+        
+        # elif len(so_line_ids) == 1:
+        #     _logger.info(f"    DEF225 ====")
+        #     so_line_ids.timesheet_id = so_line_ids[0].timesheet_ids
+        #     so_line_id = so_line_ids
+        #     pass
+        # else:
+        #     msg = f"Error: Multiples Registers: {so_line_ids}"
+        #     raise ValidationError(msg)
         
         return so_line_id
         
     def so_line_write(self):
-        _logger.info(f"  Sale Order Line Update for: {self}\n")
-        _logger.info(f"    self.order_id for: {self.order_id}\n")
-        _logger.info(f"    self.order_id for: {self.so_line}\n")
-        _logger.info(f"    Si está self.task_id: {self.task_id}\n")
-        _logger.info(f"    Si está self.task_id.sale_order_id: {self.task_id.sale_order_id}\n")
+        _logger.info(f"  DEF235 Sale Order Line Update for: {self}\n")
+        _logger.info(f"    DEF236 self.order_id for: {self.order_id}\n")
+        _logger.info(f"    DEF237 self.order_id for: {self.so_line}\n")
+        _logger.info(f"    DEF238 Si está self.task_id: {self.task_id}\n")
+        _logger.info(f"    DEF239 Si está self.task_id.sale_order_id: {self.task_id.sale_order_id}\n")
+        _logger.info(f"    DEF240 self.task_id.sale_order_id.so_line: {self.task_id.sale_order_id.order_line}\n")
+        _logger.info(f"    DEF241 self.task_id.sale_order_id.so_line.timesheet_id: {self.task_id.sale_order_id.order_line.timesheet_id}\n")
         
         so_line_ids = self.env['sale.order.line'].search([
             ('timesheet_id', '=', self.id)
         ])
-        _logger.info(f"    DEF243 so_line_ids: {so_line_ids}\n")
+        _logger.info(f"        DEF243 so_line_ids: {so_line_ids}\n")
 
+        
+        
         if len(so_line_ids) == 0:
             _logger.info(f"    DEF246 ====")
             so_line_id = self.so_line_create()
@@ -255,6 +304,9 @@ class AccountAnalyticLineCustom(models.Model): # 1683736253
             so_line_id.product_uom_qty = self.unit_amount
             result = True
         elif len(so_line_ids) > 1:
+            for record in so_line_ids:
+                _logger.info(f"      DEF261 record.order_id: {record.order_id}")
+            
             msg = f"Found Multiple Sales Order Lines for Timesheet: {self.id}"
             raise ValidationError(msg)
         else:

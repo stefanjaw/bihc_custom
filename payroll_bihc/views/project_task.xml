@@ -1,6 +1,6 @@
 <odoo>
   <data>
-
+    
     <record model="ir.ui.view" id="project_task_form_custom_bihc">
       <field name="name">project.task.form.custom.bihc</field>
       <field name="inherit_id" ref="project.view_task_form2"/>
